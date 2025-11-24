@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Typing Practice — Fast, Minimal, Offline</title>
+    <meta name="description" content="Minimal typing practice app — real-time WPM, accuracy, mistakes. Works fully offline and deploys to Netlify/Vercel." />
+    <!-- SEO friendly canonical and open graph -->
+    <link rel="canonical" href="/" />
+    <meta property="og:title" content="Typing Practice — Fast, Minimal, Offline" />
+    <meta property="og:description" content="Practice typing with generated short texts, see WPM & accuracy in real time. Offline-ready." />
+    <meta property="og:type" content="website" />
+
+    <!-- AdSense placeholders (replace with real code when ready) -->
+    <!-- Header ad placeholder -->
+    <meta name="adsense-header" content="placeholder" />
+
+    <script type="module" src="/src/main.jsx"></script>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- bottom ad placeholder -->
+    <!-- <div id="adsense-bottom" class="ad-placeholder">Bottom Ad Placeholder</div> -->
+    <!-- register service worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js').catch(function(err) {
+          console.warn('SW registration failed:', err);
+        });
+      }
+    </script>
+  </body>
+</html>
