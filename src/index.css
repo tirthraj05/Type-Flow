@@ -5,5 +5,5 @@
 /* custom utilities */
 :root{color-scheme: dark}
 
-.fade-in{@apply transition-opacity duration-600 ease-out opacity-0}
+.fade-in{@apply transition-opacity duration-500 ease-out opacity-0}
 .fade-in.show{@apply opacity-100}
