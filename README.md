@@ -21,6 +21,8 @@ cd d:/typing
 npm install
 ```
 
+Note: After pulling the `add-typing-practice` branch you should run `npm install` again because Tailwind/PostCSS dev dependencies were added.
+
 2. Run dev server
 
 ```powershell

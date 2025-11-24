@@ -9,9 +9,9 @@ import Footer from './components/Footer'
 
 export default function App() {
   return (
-    <div className="app-root">
+    <div className="min-h-screen bg-gradient-to-b from-bg via-slate-900 to-bg text-white">
       <Header />
-      <main className="container">
+      <main className="py-8">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/test" element={<TypingTest />} />
