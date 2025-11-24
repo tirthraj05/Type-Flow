@@ -1,34 +1,481 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Typing Practice — Fast, Minimal, Offline</title>
-    <meta name="description" content="Minimal typing practice app — real-time WPM, accuracy, mistakes. Works fully offline and deploys to Netlify/Vercel." />
-    <!-- SEO friendly canonical and open graph -->
-    <link rel="canonical" href="/" />
-    <meta property="og:title" content="Typing Practice — Fast, Minimal, Offline" />
-    <meta property="og:description" content="Practice typing with generated short texts, see WPM & accuracy in real time. Offline-ready." />
-    <meta property="og:type" content="website" />
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TypeFlow — Typing Practice</title>
+  <meta name="description" content="Practice typing with live WPM, accuracy, and mistakes. Client-side, offline-ready." />
+  <link rel="canonical" href="/" />
+  <meta property="og:title" content="TypeFlow — Typing Practice" />
+  <meta property="og:description" content="Practice typing with live WPM and accuracy. Client-side, offline-ready." />
+  <!-- main stylesheet (drop-in from your updated CSS) -->
+  <link rel="stylesheet" href="/src/styles.css" />
+  <!-- main JS (React entry or progressive enhancement hooks) -->
+  <script type="module" src="/src/main.jsx" defer></script>
+  <!-- minimal keyboard styles (kept small; main CSS will override) -->
+  <style>
+    .visible-input{width:100%;min-height:72px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);padding:12px;font-family:var(--font-mono, monospace);font-size:1rem;resize:vertical}
+    .virtual-keyboard{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+    .vk-row{display:flex;gap:8px;justify-content:center}
+    .vk-key{background:var(--panel);border:1px solid rgba(0,0,0,0.06);padding:8px 12px;border-radius:8px;cursor:pointer;min-width:38px;text-align:center}
+    .vk-key.vk-large{min-width:160px}
+    .vk-key--active{transform:translateY(1px);box-shadow:inset 0 1px 0 rgba(0,0,0,0.06);background:var(--primary-100)}
+    @media (prefers-reduced-motion: reduce){ .vk-key{transition:none} }
+  </style>
+</head>
+<body>
+  <!-- Accessible site header -->
+  <header class="site-header" role="banner">
+    <div class="container header-inner">
+      <a href="/" class="brand" id="brand" aria-label="TypeFlow home">
+        <div class="brand-logo" aria-hidden="true"></div>
+        <div>
+          <div class="brand-title">TypeFlow</div>
+          <div class="brand-sub">Practice — fast, clean, and focused</div>
+        </div>
+      </a>
 
-    <!-- AdSense placeholders (replace with real code when ready) -->
-    <!-- Header ad placeholder -->
-    <meta name="adsense-header" content="placeholder" />
+      <nav class="nav" role="navigation" aria-label="Main navigation">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/test" class="nav-link">Practice</a>
+        <a href="/about" class="nav-link">About</a>
+        <a href="/test" class="button btn-primary" id="quick-start" role="button" aria-label="Start Practice">Start</a>
+        <button class="button theme-toggle" id="theme-toggle" aria-pressed="false" aria-label="Toggle theme">🌗</button>
+      </nav>
+    </div>
+  </header>
 
-    <script type="module" src="/src/main.jsx"></script>
-    <link rel="stylesheet" href="/src/styles.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <!-- bottom ad placeholder -->
-    <!-- <div id="adsense-bottom" class="ad-placeholder">Bottom Ad Placeholder</div> -->
-    <!-- register service worker -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/service-worker.js').catch(function(err) {
-          console.warn('SW registration failed:', err);
-        });
+  <!-- Main content area -->
+  <main id="main" role="main">
+    <div class="container">
+
+      <!-- Hero / Intro -->
+      <section class="hero" aria-labelledby="site-headline">
+        <div>
+          <h1 id="site-headline" class="headline">Sharpen your typing. Faster. Cleaner. Smarter.</h1>
+          <p class="lead">Practice with short generated paragraphs, see WPM & accuracy live, and improve your speed without distractions.</p>
+          <p class="description">Click the paragraph or press the Start button to focus the typing area. Use the controls to regenerate or restart a test.</p>
+
+          <div class="hero-cta" id="top-cta">
+            <a href="/test" class="button btn-primary" id="cta-start" aria-label="Start Practicing">Start Practicing</a>
+            <button class="button btn-ghost" id="cta-learn" aria-label="Learn more about TypeFlow">Learn more</button>
+          </div>
+        </div>
+
+        <aside class="card side-card" aria-labelledby="sidebar-title">
+          <h3 id="sidebar-title">Quick Facts</h3>
+          <p class="text-muted">No accounts, works offline, minimal and fast.</p>
+          <div class="ad-slot" aria-hidden="true">Ad / promo placeholder</div>
+        </aside>
+      </section>
+
+      <!-- Typing test section (semantic, accessible) -->
+      <section id="typing-section" class="card typing-card" aria-labelledby="typing-title">
+        <header style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="typing-title" style="margin:0">Typing Test</h2>
+          <div id="timer" class="text-muted" aria-live="polite" aria-atomic="true">Time: <strong id="time-elapsed">0s</strong></div>
+        </header>
+
+        <!-- Typing area (article for the content being typed) -->
+        <article id="typing-area" class="typing-area" aria-label="Typing area">
+          <!-- Visible paragraph / monospaced readout -->
+          <div id="text-display" class="text-display" role="region" aria-labelledby="typing-title" tabindex="0">
+            <!-- Fallback sample text; JS will replace / populate with generated text -->
+            <span class="char">T</span><span class="char">y</span><span class="char">p</span><span class="char">e</span><span class="char"> </span>
+            <span class="char">f</span><span class="char">o</span><span class="char">r</span><span class="char"> </span>
+            <span class="char">f</span><span class="char">u</span><span class="char">n</span><span class="char">.</span>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="progress-bar" aria-hidden="false" aria-label="Progress">
+            <div id="progress" class="progress" style="width:0%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" role="progressbar"></div>
+          </div>
+
+          <!-- Live stats (aria-live region for screen readers) -->
+          <div id="stats" class="stats" role="status" aria-live="polite" aria-atomic="true">
+            <div class="wpm-badge" id="wpm" aria-label="Words per minute">WPM: <strong>0</strong></div>
+            <div class="metric" id="accuracy" aria-label="Accuracy">Accuracy: <strong>100%</strong></div>
+            <div class="metric" id="mistakes" aria-label="Mistakes">Mistakes: <strong>0</strong></div>
+          </div>
+
+          <!-- Controls -->
+          <div id="controls" class="controls" role="toolbar" aria-label="Test controls">
+            <button class="button primary" id="start-btn" aria-label="Start test">Start</button>
+            <button class="button" id="generate-btn" aria-label="Generate paragraph">Generate Paragraph</button>
+            <button class="button" id="restart-btn" aria-label="Restart test">Restart</button>
+          </div>
+
+          <!-- Hidden textarea used to capture keystrokes; accessible but visually offscreen -->
+          <label for="hidden-input" class="sr-only" id="hidden-input-label">Typing input (hidden)</label>
+          <textarea id="hidden-input" class="hidden-input" aria-labelledby="hidden-input-label" rows="2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+          <!-- Visible typing box (mirrors hidden input and is editable) -->
+          <label for="visible-input" class="sr-only">Visible typing input</label>
+          <textarea id="visible-input" class="text visible-input" aria-label="Typing input" rows="4" placeholder="Click here and start typing..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+          <!-- Virtual keyboard (click to type) -->
+          <div id="virtual-keyboard" class="virtual-keyboard" role="application" aria-label="Virtual keyboard">
+            <!-- rows defined in markup for simplicity -->
+            <div class="vk-row">
+              <button class="vk-key" data-key="" aria-label="Backspace">⌫</button>
+              <button class="vk-key" data-key="q">q</button>
+              <button class="vk-key" data-key="w">w</button>
+              <button class="vk-key" data-key="e">e</button>
+              <button class="vk-key" data-key="r">r</button>
+              <button class="vk-key" data-key="t">t</button>
+              <button class="vk-key" data-key="y">y</button>
+              <button class="vk-key" data-key="u">u</button>
+              <button class="vk-key" data-key="i">i</button>
+              <button class="vk-key" data-key="o">o</button>
+              <button class="vk-key" data-key="p">p</button>
+            </div>
+            <div class="vk-row">
+              <button class="vk-key" data-key="a">a</button>
+              <button class="vk-key" data-key="s">s</button>
+              <button class="vk-key" data-key="d">d</button>
+              <button class="vk-key" data-key="f">f</button>
+              <button class="vk-key" data-key="g">g</button>
+              <button class="vk-key" data-key="h">h</button>
+              <button class="vk-key" data-key="j">j</button>
+              <button class="vk-key" data-key="k">k</button>
+              <button class="vk-key" data-key="l">l</button>
+              <button class="vk-key" data-key=",">,</button>
+            </div>
+            <div class="vk-row">
+              <button class="vk-key" data-key="z">z</button>
+              <button class="vk-key" data-key="x">x</button>
+              <button class="vk-key" data-key="c">c</button>
+              <button class="vk-key" data-key="v">v</button>
+              <button class="vk-key" data-key="b">b</button>
+              <button class="vk-key" data-key="n">n</button>
+              <button class="vk-key" data-key="m">m</button>
+              <button class="vk-key" data-key=".">.</button>
+              <button class="vk-key" data-key=",">,</button>
+              <button class="vk-key" data-key="?">?</button>
+            </div>
+            <div class="vk-row">
+              <button class="vk-key vk-large" data-key=" ">Space</button>
+              <button class="vk-key" data-key="Enter">Enter</button>
+            </div>
+          </div>
+
+          <p class="help text-muted">Tip: Click the paragraph or press <kbd>Enter</kbd> to focus and begin typing. You can also click keys on the virtual keyboard.</p>
+        </article>
+      </section>
+
+      <!-- Results / aside area for live details -->
+      <section class="card" id="results-quick" aria-labelledby="results-title" style="margin-top:16px">
+        <h3 id="results-title">Live Details</h3>
+        <div id="results-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px">
+          <div class="metric"><div class="label">WPM</div><div class="value" id="result-wpm">0</div></div>
+          <div class="metric"><div class="label">Accuracy</div><div class="value" id="result-accuracy">100%</div></div>
+          <div class="metric"><div class="label">Mistakes</div><div class="value" id="result-mistakes">0</div></div>
+          <div class="metric"><div class="label">Progress</div><div class="value" id="result-progress">0%</div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Onboarding modal (progressive enhancement with localStorage 'dontShowAgain') -->
+  <div id="onboard-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="onboard-title" aria-hidden="true" style="display:none">
+    <div class="panel" role="document">
+      <header style="display:flex;justify-content:space-between;align-items:center">
+        <h2 id="onboard-title">How the typing test works</h2>
+        <button id="onboard-close" class="button" aria-label="Close onboarding">✕</button>
+      </header>
+      <div style="margin-top:12px">
+        <p class="text-muted">Focus the paragraph and start typing. The timer starts on your first keystroke. Finish the paragraph to complete the test — your WPM and accuracy update live.</p>
+        <ul style="margin-top:8px">
+          <li>Start: press <strong>Start</strong> or click the paragraph.</li>
+          <li>Regenerate: create a new paragraph anytime.</li>
+          <li>Restart: resets the current paragraph and timer.</li>
+        </ul>
+      </div>
+
+      <div style="margin-top:14px;display:flex;align-items:center;gap:12px">
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="onboard-dont-show" />
+          <span>Don't show this again</span>
+        </label>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="onboard-gotit" class="button primary">Got it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div>© <span id="year"></span> TypeFlow — Demo</div>
+      <div class="text-muted">Client-side demo. Ads are placeholders.</div>
+    </div>
+  </footer>
+
+  <!-- Small inline script to wire basic onboarding and helpful accessibility behaviors.
+       The app's main JS (React) can also enhance/replace these behaviors. -->
+  <script>
+    (function(){
+      // Set current year
+      document.getElementById('year').textContent = new Date().getFullYear();
+
+      // Onboarding modal logic using localStorage key 'tf_onboarding_hide'
+      const modal = document.getElementById('onboard-modal');
+      const closeBtn = document.getElementById('onboard-close');
+      const gotIt = document.getElementById('onboard-gotit');
+      const dontShow = document.getElementById('onboard-dont-show');
+
+      function showModal(){
+        modal.style.display = 'grid';
+        modal.setAttribute('aria-hidden', 'false');
+        // Focus first interactive element
+        gotIt.focus();
       }
-    </script>
-  </body>
+      function hideModal(){
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      // Only show if not previously dismissed
+      try {
+        const hide = localStorage.getItem('tf_onboarding_hide');
+        if(!hide){
+          // small delay for smoother paint
+          setTimeout(showModal, 250);
+        }
+      } catch(e) {
+        // ignore storage errors
+      }
+
+      function handleClose(save){
+        if(save && dontShow.checked){
+          try { localStorage.setItem('tf_onboarding_hide', '1') } catch(e){}
+        }
+        hideModal();
+      }
+
+      closeBtn.addEventListener('click', ()=> handleClose(false));
+      gotIt.addEventListener('click', ()=> handleClose(true));
+
+      // Close on Escape
+      window.addEventListener('keydown', (ev)=>{
+        if(ev.key === 'Escape' && modal.style.display !== 'none'){
+          handleClose(false);
+        }
+      });
+
+      // Clicking overlay closes (but not inside panel)
+      modal.addEventListener('click', (ev)=>{
+        if(ev.target === modal) handleClose(false);
+      });
+
+      // Theme toggle: toggle `.theme-dark` on <body> and save preference
+      const themeToggle = document.getElementById('theme-toggle');
+      const THEME_KEY = 'tf_theme_pref';
+      function setTheme(isDark){
+        document.body.classList.toggle('theme-dark', !!isDark);
+        themeToggle.setAttribute('aria-pressed', !!isDark);
+        try{ localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light') }catch(e){}
+      }
+      // init theme from storage or prefer-color-scheme
+      try {
+        const pref = localStorage.getItem(THEME_KEY);
+        if(pref === 'dark') setTheme(true);
+        else if(pref === 'light') setTheme(false);
+        else setTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      } catch(e) { /* ignore */ }
+
+      themeToggle.addEventListener('click', ()=>{
+        const isDark = document.body.classList.toggle('theme-dark');
+        themeToggle.setAttribute('aria-pressed', isDark);
+        try{ localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light') }catch(e){}
+      });
+
+      // convenience: pressing Enter on #text-display focuses hidden input
+      const textDisplay = document.getElementById('text-display');
+      const hiddenInput = document.getElementById('hidden-input');
+      textDisplay.addEventListener('click', ()=> hiddenInput.focus());
+      textDisplay.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') hiddenInput.focus();
+      });
+
+      // Provide initial aria-live placeholders so screen readers announce when JS updates.
+      // The app's main JS should update these elements by id: #wpm, #accuracy, #mistakes, #progress, #time-elapsed
+      document.getElementById('wpm').setAttribute('aria-live', 'polite');
+      document.getElementById('accuracy').setAttribute('aria-live', 'polite');
+      document.getElementById('mistakes').setAttribute('aria-live', 'polite');
+      document.getElementById('progress').setAttribute('role','progressbar');
+
+      // Expose a small API for non-React scripts to update stats safely (optional)
+      window.TypeFlow = window.TypeFlow || {};
+      window.TypeFlow.updateStats = function({wpm, accuracy, mistakes, progress, seconds}){
+        try {
+          if(typeof wpm !== 'undefined') {
+            const el = document.getElementById('wpm');
+            el.innerHTML = 'WPM: <strong>'+String(wpm)+'</strong>';
+          }
+          if(typeof accuracy !== 'undefined'){
+            document.getElementById('accuracy').innerHTML = 'Accuracy: <strong>'+String(accuracy)+'%</strong>';
+          }
+          if(typeof mistakes !== 'undefined'){
+            document.getElementById('mistakes').innerHTML = 'Mistakes: <strong>'+String(mistakes)+'</strong>';
+          }
+          if(typeof progress !== 'undefined'){
+            const bar = document.getElementById('progress');
+            bar.style.width = (Number(progress)||0) + '%';
+            bar.setAttribute('aria-valuenow', String(Number(progress)||0));
+          }
+          if(typeof seconds !== 'undefined'){
+            document.getElementById('time-elapsed').textContent = String(seconds) + 's';
+          }
+        } catch(e){}
+      };
+
+      /* ==========================
+         Visible input <-> hidden input syncing
+         and virtual keyboard handling
+         ========================== */
+      try {
+        const vis = document.getElementById('visible-input');
+        const hidden = document.getElementById('hidden-input');
+        const vk = document.getElementById('virtual-keyboard');
+
+        if(vis && hidden){
+          // mirror hidden -> visible (when React updates hidden)
+          hidden.addEventListener('input', ()=>{
+            if(vis.value !== hidden.value) vis.value = hidden.value;
+          });
+
+          // visible -> hidden (user types into visible box)
+          vis.addEventListener('input', (ev)=>{
+            if(hidden.value !== vis.value){
+              hidden.value = vis.value;
+              // dispatch input event so React (or other listeners) react to change
+              hidden.dispatchEvent(new Event('input', {bubbles:true}));
+            }
+          });
+
+          // keep caret/focus sync: when visible focused, show caret
+          vis.addEventListener('focus', ()=> hidden.focus());
+
+          // clicking the display focuses visible input for convenience
+          const disp = document.getElementById('text-display');
+          if(disp) disp.addEventListener('click', ()=> vis.focus());
+        }
+
+        // Virtual keyboard click handling
+        if(vk && vis && hidden){
+          function insertAtCursor(el, text){
+            const start = el.selectionStart || 0;
+            const end = el.selectionEnd || 0;
+            const val = el.value || '';
+            const newVal = val.slice(0,start) + text + val.slice(end);
+            el.value = newVal;
+            // move caret after inserted text
+            const pos = start + text.length;
+            el.selectionStart = el.selectionEnd = pos;
+            // mirror to hidden and dispatch
+            hidden.value = el.value;
+            hidden.dispatchEvent(new Event('input', {bubbles:true}));
+            // update visible too (redundant) and focus
+            el.focus();
+          }
+
+          vk.addEventListener('click', (ev)=>{
+            const key = ev.target.closest('.vk-key');
+            if(!key) return;
+            ev.preventDefault();
+            const k = key.getAttribute('data-key');
+            // visual highlight
+            key.classList.add('vk-key--active');
+            setTimeout(()=> key.classList.remove('vk-key--active'), 140);
+
+            if(k === '\u007f' || k === 'Backspace'){ // backspace
+              const s = vis.selectionStart || 0;
+              const e = vis.selectionEnd || 0;
+              if(s === e && s>0){
+                // remove previous char
+                vis.value = vis.value.slice(0,s-1) + vis.value.slice(e);
+                vis.selectionStart = vis.selectionEnd = s-1;
+              } else {
+                // remove selection
+                vis.value = vis.value.slice(0,s) + vis.value.slice(e);
+                vis.selectionStart = vis.selectionEnd = s;
+              }
+              hidden.value = vis.value;
+              hidden.dispatchEvent(new Event('input', {bubbles:true}));
+              vis.focus();
+              return;
+            }
+
+            if(k === 'Enter'){
+              insertAtCursor(vis,'\n');
+              return;
+            }
+
+            if(k === ' '){
+              insertAtCursor(vis,' ');
+              return;
+            }
+
+            // default: insert the character
+            insertAtCursor(vis, k);
+          });
+
+          // physical keyboard highlights virtual key
+          window.addEventListener('keydown', (ev)=>{
+            const raw = ev.key;
+            let keyName = raw.length === 1 ? raw.toLowerCase() : raw;
+            // normalize some common names
+            if(keyName === 'backspace') keyName = '\u007f';
+            if(keyName === ' ') keyName = ' ';
+            const keyEl = Array.from(vk.querySelectorAll('.vk-key')).find(k=>{
+              const dk = k.getAttribute('data-key');
+              if(!dk) return false;
+              return dk.toLowerCase() === keyName.toLowerCase();
+            });
+            if(keyEl){ keyEl.classList.add('vk-key--active'); }
+          });
+          window.addEventListener('keyup', (ev)=>{
+            const raw = ev.key;
+            let keyName = raw.length === 1 ? raw.toLowerCase() : raw;
+            if(keyName === 'backspace') keyName = '\u007f';
+            if(keyName === ' ') keyName = ' ';
+            const keyEl = Array.from(vk.querySelectorAll('.vk-key')).find(k=>{
+              const dk = k.getAttribute('data-key');
+              if(!dk) return false;
+              return dk.toLowerCase() === keyName.toLowerCase();
+            });
+            if(keyEl){ keyEl.classList.remove('vk-key--active'); }
+          });
+        }
+          // ensure visible input follows React-controlled hidden input changes
+          if(vis && hidden){
+            let lastHidden = hidden.value;
+            setInterval(()=>{
+              try{
+                if(hidden.value !== lastHidden){
+                  lastHidden = hidden.value;
+                  if(vis.value !== hidden.value) vis.value = hidden.value;
+                }
+              }catch(e){}
+            }, 150);
+            // initial sync
+            if(vis.value !== hidden.value) vis.value = hidden.value;
+          }
+        } catch(e){ /* non-fatal */ }
+    })();
+  </script>
+
+  <!-- service worker registration (keeps existing behavior) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(function(err) {
+        console.warn('SW registration failed:', err);
+      });
+    }
+  </script>
+</body>
+</html>
+</body>
 </html>
