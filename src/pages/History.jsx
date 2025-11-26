@@ -29,7 +29,7 @@ export default function History() {
       setError('');
 
       // Fetch test history with pagination
-      const historyResponse = await fetch(`http://localhost:5000/api/tests/history?page=${page}&limit=${limit}`, {
+      const historyResponse = await fetch(`http://localhost:5000/api/tests?page=${page}&limit=${limit}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -45,7 +45,7 @@ export default function History() {
       }
 
       // Fetch statistics
-      const statsResponse = await fetch('http://localhost:5000/api/tests/dashboard/stats', {
+      const statsResponse = await fetch('http://localhost:5000/api/tests/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -96,24 +96,26 @@ export default function History() {
     });
   };
 
-  const exportToCSV = () => {
-    if (results.length === 0) return;
+  const exportToCSV = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/tests/export/csv', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-    const headers = ['Date & Time', 'WPM', 'Accuracy (%)', 'Mistakes', 'Duration (s)'];
-    const csvContent = [
-      headers.join(','),
-      ...results.map((r) =>
-        `"${formatDate(r.createdAt)}",${r.wpm},${r.accuracy},${r.mistakes},${r.duration}`
-      ),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'typing_history.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `typeflow-history-${Date.now()}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+    }
   };
 
   if (loading) {
@@ -218,7 +220,12 @@ export default function History() {
                   <tbody>
                     {results.map((result) => (
                       <tr key={result.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
-                        <td className="px-6 py-4 text-gray-900">{formatDate(result.createdAt)}</td>
+                        <td className="px-6 py-4 text-gray-900">
+                          <div>{result.localDate || formatDate(result.createdAt)}</div>
+                          {result.deviceInfo && (
+                            <div className="text-xs text-gray-500 mt-1">{result.deviceInfo}</div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-right font-bold text-blue-600">{result.wpm}</td>
                         <td className="px-6 py-4 text-right font-bold text-green-600">{result.accuracy}%</td>
                         <td className="px-6 py-4 text-right text-red-600">{result.mistakes}</td>
@@ -322,14 +329,37 @@ export default function History() {
               <div className="mb-6">
                 <h3 className="font-bold text-gray-900 mb-3">Typed Text</h3>
                 <div className="bg-gray-50 p-4 rounded-lg max-h-40 overflow-y-auto">
-                  <p className="text-gray-700 leading-relaxed">{selectedTest.typedText}</p>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedTest.typedText}</p>
                 </div>
               </div>
 
-              <div className="flex justify-between">
-                <div className="text-gray-600">
-                  <strong>Test Date:</strong> {formatDate(selectedTest.createdAt)}
+              <div className="mb-6">
+                <h3 className="font-bold text-gray-900 mb-3">Metadata</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-gray-600 text-sm">Test Date</div>
+                    <div className="text-gray-900">{selectedTest.localDate || formatDate(selectedTest.createdAt)}</div>
+                  </div>
+                  {selectedTest.deviceInfo && (
+                    <div>
+                      <div className="text-gray-600 text-sm">Device</div>
+                      <div className="text-gray-900">{selectedTest.deviceInfo}</div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-gray-600 text-sm">Status</div>
+                    <div className="text-gray-900">
+                      {selectedTest.improved ? (
+                        <span className="text-green-600 font-semibold">✓ Improved</span>
+                      ) : (
+                        <span className="text-gray-600">Standard</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              <div className="flex justify-end">
                 <button
                   onClick={() => setSelectedTest(null)}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition"

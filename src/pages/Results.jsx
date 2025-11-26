@@ -8,6 +8,7 @@ export default function Results() {
   const stats = state?.stats;
   const improved = state?.improved;
   const comparison = state?.comparison;
+  const encouragementMessage = state?.encouragementMessage;
 
   if (!stats) {
     return (
@@ -36,13 +37,17 @@ export default function Results() {
   const getImprovementMessage = () => {
     if (improved === undefined) return null;
 
+    const message = encouragementMessage || (improved 
+      ? 'Nice! Your WPM improved — great progress!' 
+      : 'Good effort — keep practicing!');
+
     if (improved) {
       return (
         <div className="flex items-center gap-3">
           <span className="text-2xl">🎉</span>
           <div>
-            <div className="font-bold">Nice! Your WPM Improved</div>
-            <div className="text-sm opacity-90">Great progress! Keep up the momentum.</div>
+            <div className="font-bold">{message}</div>
+            <div className="text-sm opacity-90">Keep up the momentum!</div>
           </div>
         </div>
       );
@@ -51,7 +56,7 @@ export default function Results() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">💪</span>
           <div>
-            <div className="font-bold">Good Effort! Keep Practicing</div>
+            <div className="font-bold">{message}</div>
             <div className="text-sm opacity-90">Every attempt makes you better. Try again!</div>
           </div>
         </div>
